@@ -72,7 +72,7 @@ function drawMaturityChart(data){
  data.forEach((item,index)=>{
   const center=margin.left+groupW*(index+.5),bars=[{value:item.large,x:center-barW-2,color:'#173f35'},{value:item.small,x:center+2,color:'#e5683a'}];
   bars.forEach(bar=>{const h=bar.value/axisMax*chartH,y=margin.top+chartH-h;ctx.fillStyle=bar.color;ctx.fillRect(bar.x,y,barW,h);if(bar.value){ctx.fillStyle='#39443f';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(String(bar.value),bar.x+barW/2,y-4)}});
-  ctx.save();ctx.translate(center,margin.top+chartH+12);if(data.length>8)ctx.rotate(-Math.PI/4);ctx.fillStyle='#5f5a50';ctx.textAlign=data.length>8?'right':'center';ctx.textBaseline='top';ctx.fillText(item.label);ctx.restore();
+  ctx.save();ctx.translate(center,margin.top+chartH+12);if(data.length>8)ctx.rotate(-Math.PI/4);ctx.fillStyle='#5f5a50';ctx.textAlign=data.length>8?'right':'center';ctx.textBaseline='top';ctx.fillText(item.label,0,0);ctx.restore();
  });
  ctx.textBaseline='middle';ctx.textAlign='left';ctx.fillStyle='#173f35';ctx.fillRect(margin.left,18,12,12);ctx.fillStyle='#39443f';ctx.fillText('100万以上',margin.left+18,24);ctx.fillStyle='#e5683a';ctx.fillRect(margin.left+112,18,12,12);ctx.fillStyle='#39443f';ctx.fillText('100万以下',margin.left+130,24);
 }
