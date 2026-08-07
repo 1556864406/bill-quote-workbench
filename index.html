@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="description" content="上传票据清单、维护承兑行利率并生成加权报价 Excel" />
+  <title>票据报价测算台</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<main>
+  <header class="hero">
+    <div><span class="eyebrow">BILL PRICING WORKBENCH</span><h1>票据报价测算台</h1><p>维护利率、上传票据清单，一次完成期限测算与加权报价。</p></div>
+    <div class="date-box"><label for="discountDate">贴现日</label><input id="discountDate" type="date" /></div>
+  </header>
+
+  <section class="workspace">
+    <div class="section-head"><div><span class="step">01</span><h2>上传票据数据</h2></div><span class="hint">支持 XLSX / XLS</span></div>
+    <div id="dropzone" class="dropzone" role="button" tabindex="0">
+      <input id="fileInput" hidden type="file" accept=".xlsx,.xls" />
+      <div class="upload-icon">↥</div><strong id="fileTitle">拖入 Excel 文件，或点击选择</strong><span id="message">请上传包含“金额、到期日、银行名称（全称）”的 Excel 文件</span>
+    </div>
+  </section>
+
+  <section class="workspace rates-section">
+    <div class="section-head"><div><span class="step">02</span><h2>利率维护</h2></div><button id="resetRates" class="text-button">恢复原始 Sheet1</button></div>
+    <p class="section-note">数值单位为百分比（例如 0.60 表示 0.60%）。修改会保存在当前浏览器；“其他类银票”是未命中关键词时的默认分类。</p>
+    <div class="rate-table-wrap"><table class="rate-table"><thead id="rateHead"></thead><tbody id="rateBody"></tbody></table></div>
+  </section>
+
+  <section class="workspace result-section">
+    <div class="section-head"><div><span class="step">03</span><h2>测算结果</h2></div><button id="exportBtn" class="primary" disabled>导出 Excel <span>↓</span></button></div>
+    <div class="kpis">
+      <article><span>加权平均天数</span><strong id="kpiDays">—</strong><em>天</em></article>
+      <article><span>合计金额</span><strong id="kpiAmount">—</strong><em>元</em></article>
+      <article><span>加权利率</span><strong id="kpiRate">—</strong><em>%</em></article>
+    </div>
+    <div id="resultMeta" class="result-meta"><span>等待上传数据</span></div>
+    <div class="result-table-wrap"><table class="result-table"><thead><tr><th>#</th><th>到期日</th><th>贴现日</th><th>计息天数</th><th>报价利率</th><th>承兑行</th><th>金额</th><th>状态</th></tr></thead><tbody id="resultBody"><tr><td colspan="8" class="empty">上传文件后，报价明细将在这里生成</td></tr></tbody></table></div>
+    <p id="tableNote" class="table-note"></p>
+  </section>
+  <footer>计算数据仅在当前浏览器中处理 · 请在正式业务使用前复核利率与异常提示</footer>
+</main>
+<script src="exceljs.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
