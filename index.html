@@ -39,6 +39,29 @@
     <div class="result-table-wrap"><table class="result-table"><thead><tr><th>#</th><th>到期日</th><th>贴现日</th><th>计息天数</th><th>报价利率</th><th>承兑行</th><th>金额</th><th>状态</th></tr></thead><tbody id="resultBody"><tr><td colspan="8" class="empty">上传文件后，报价明细将在这里生成</td></tr></tbody></table></div>
     <p id="tableNote" class="table-note"></p>
   </section>
+
+  <section class="workspace maturity-section">
+    <div class="section-head">
+      <div><span class="step">04</span><h2>月度到期结构</h2></div>
+      <span class="hint">按到期月份与票面金额统计</span>
+    </div>
+    <p class="section-note">金额大于等于 100 万元计入“100万以上”，小于 100 万元计入“100万以下”；仅统计到期日和金额有效的汇票。</p>
+    <div class="maturity-layout">
+      <article class="chart-panel">
+        <div class="panel-title"><strong>每月到期汇票张数</strong><span>单位：张</span></div>
+        <div class="chart-wrap"><canvas id="maturityChart" role="img" aria-label="每月到期汇票100万以上与100万以下张数柱形图"></canvas></div>
+      </article>
+      <article class="maturity-table-panel">
+        <div class="panel-title"><strong>月度统计表</strong><span id="maturityTotal">共 0 张</span></div>
+        <div class="maturity-table-wrap">
+          <table class="maturity-table">
+            <thead><tr><th>到期月份</th><th>100万以上</th><th>100万以下</th><th>合计</th></tr></thead>
+            <tbody id="maturityBody"><tr><td colspan="4" class="empty">上传文件后自动生成月度统计</td></tr></tbody>
+          </table>
+        </div>
+      </article>
+    </div>
+  </section>
   <footer>计算数据仅在当前浏览器中处理 · 请在正式业务使用前复核利率与异常提示</footer>
 </main>
 <script src="exceljs.min.js"></script>

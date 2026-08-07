@@ -34,3 +34,52 @@ async function readFile(file){if(!/\.xlsx?$/i.test(file.name)){setMessage('文�
 function setMessage(t){$('message').textContent=t}function setBusy(b,t){$('dropzone').classList.toggle('busy',b);if(t)setMessage(t)}
 async function exportExcel(){if(!rows.length)return;const s=summary(),wb=new ExcelJS.Workbook();wb.creator='票据报价测算工具';const rs=wb.addWorksheet('利率维护');rs.addRow(['承兑行分类',...MONTHS.map(m=>m+'月'),'匹配关键词','100万以下参考下限']);rates.forEach(r=>rs.addRow([r.name,...MONTHS.map(m=>r.rates[m]??null),r.keywords,r.smallMin??null]));rs.getRow(1).font={bold:true,color:{argb:'FFFFFFFF'}};rs.getRow(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF173F35'}};rs.columns=[{width:25},...MONTHS.map(()=>({width:11})),{width:70},{width:20}];for(let c=2;c<=8;c++)rs.getColumn(c).numFmt='0.00';const ws=wb.addWorksheet('报价结果',{views:[{state:'frozen',ySplit:1}]});ws.addRow(['到期日','贴现日','计息天数','分行报价贴现利率','承兑行','金额','匹配分类','检查状态']);rows.forEach(r=>ws.addRow([r.maturity,r.discount,r.days,r.rate,r.bank,r.amount,r.category,r.status==='ok'?'正常':r.status==='warn'?'待确认':'异常']));ws.columns=[{width:14},{width:14},{width:12},{width:20},{width:48},{width:18},{width:24},{width:12}];ws.getRow(1).font={bold:true,color:{argb:'FFFFFFFF'}};ws.getRow(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF173F35'}};ws.getColumn(1).numFmt='yyyy/m/d';ws.getColumn(2).numFmt='yyyy/m/d';ws.getColumn(4).numFmt='0.00';ws.getColumn(6).numFmt='#,##0.00';ws.autoFilter={from:'A1',to:'H1'};ws.addRow([]);const start=ws.rowCount+1;[['加权平均天数',s.days],['合计金额',s.amount],['加权利率',s.rate]].forEach(x=>ws.addRow([null,null,null,null,null,x[0],x[1]]));for(let r=start;r<start+3;r++)for(let c=6;c<=7;c++){ws.getCell(r,c).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE36E'}};ws.getCell(r,c).font={bold:true}}ws.getCell(start,7).numFmt='0';ws.getCell(start+1,7).numFmt='#,##0.00';ws.getCell(start+2,7).numFmt='0.00';const blob=new Blob([await wb.xlsx.writeBuffer()],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`报价测算结果_${$('discountDate').value}.xlsx`;a.click();URL.revokeObjectURL(url)}
 $('discountDate').value=today();renderRates();$('discountDate').addEventListener('change',recalc);$('resetRates').addEventListener('click',()=>{rates=structuredClone(DEFAULTS);saveRates();renderRates();recalc()});$('exportBtn').addEventListener('click',exportExcel);const dz=$('dropzone'),fi=$('fileInput');dz.addEventListener('click',()=>fi.click());dz.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')fi.click()});dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragging')});dz.addEventListener('dragleave',()=>dz.classList.remove('dragging'));dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragging');if(e.dataTransfer.files[0])readFile(e.dataTransfer.files[0])});fi.addEventListener('change',()=>{if(fi.files[0])readFile(fi.files[0]);fi.value=''})
+
+let lastMaturityData=[];
+function getMonthlyMaturityData(){
+ const grouped=new Map();
+ rows.forEach(row=>{
+  if(!(row.maturity instanceof Date)||isNaN(row.maturity)||!Number.isFinite(row.amount)||row.amount<=0)return;
+  const year=row.maturity.getFullYear(),month=row.maturity.getMonth()+1;
+  const key=`${year}-${String(month).padStart(2,'0')}`;
+  if(!grouped.has(key))grouped.set(key,{key,label:`${year}年${month}月`,large:0,small:0,total:0});
+  const item=grouped.get(key);
+  if(row.amount>=1000000)item.large++;else item.small++;
+  item.total++;
+ });
+ return [...grouped.values()].sort((a,b)=>a.key.localeCompare(b.key));
+}
+function renderMaturityAnalysis(){
+ lastMaturityData=getMonthlyMaturityData();
+ const total=lastMaturityData.reduce((sum,item)=>sum+item.total,0);
+ $('maturityTotal').textContent=`共 ${total} 张`;
+ $('maturityBody').innerHTML=lastMaturityData.length?lastMaturityData.map(item=>`<tr><td>${item.label}</td><td class="large-count">${item.large}</td><td class="small-count">${item.small}</td><td><strong>${item.total}</strong></td></tr>`).join(''):'<tr><td colspan="4" class="empty">上传文件后自动生成月度统计</td></tr>';
+ drawMaturityChart(lastMaturityData);
+}
+function drawMaturityChart(data){
+ const canvas=$('maturityChart');
+ if(!canvas)return;
+ const width=Math.max(320,canvas.parentElement.clientWidth),height=360,dpr=Math.max(1,window.devicePixelRatio||1);
+ canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);canvas.style.height=height+'px';
+ const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,width,height);
+ ctx.font='12px "Microsoft YaHei",sans-serif';ctx.fillStyle='#746f64';
+ if(!data.length){ctx.textAlign='center';ctx.fillText('上传文件后自动生成柱形图',width/2,height/2);return}
+ const margin={top:54,right:20,bottom:72,left:48},chartW=width-margin.left-margin.right,chartH=height-margin.top-margin.bottom;
+ const maxValue=Math.max(...data.flatMap(item=>[item.large,item.small]),1),axisMax=Math.max(5,Math.ceil(maxValue/5)*5),ticks=5;
+ ctx.strokeStyle='#ded8cb';ctx.lineWidth=1;ctx.textAlign='right';ctx.textBaseline='middle';
+ for(let i=0;i<=ticks;i++){const value=Math.round(axisMax*i/ticks),y=margin.top+chartH-chartH*i/ticks;ctx.beginPath();ctx.moveTo(margin.left,y);ctx.lineTo(width-margin.right,y);ctx.stroke();ctx.fillStyle='#746f64';ctx.fillText(String(value),margin.left-9,y)}
+ const groupW=chartW/data.length,barW=Math.max(8,Math.min(30,(groupW-14)/2));
+ data.forEach((item,index)=>{
+  const center=margin.left+groupW*(index+.5),bars=[{value:item.large,x:center-barW-2,color:'#173f35'},{value:item.small,x:center+2,color:'#e5683a'}];
+  bars.forEach(bar=>{const h=bar.value/axisMax*chartH,y=margin.top+chartH-h;ctx.fillStyle=bar.color;ctx.fillRect(bar.x,y,barW,h);if(bar.value){ctx.fillStyle='#39443f';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(String(bar.value),bar.x+barW/2,y-4)}});
+  ctx.save();ctx.translate(center,margin.top+chartH+12);if(data.length>8)ctx.rotate(-Math.PI/4);ctx.fillStyle='#5f5a50';ctx.textAlign=data.length>8?'right':'center';ctx.textBaseline='top';ctx.fillText(item.label);ctx.restore();
+ });
+ ctx.textBaseline='middle';ctx.textAlign='left';ctx.fillStyle='#173f35';ctx.fillRect(margin.left,18,12,12);ctx.fillStyle='#39443f';ctx.fillText('100万以上',margin.left+18,24);ctx.fillStyle='#e5683a';ctx.fillRect(margin.left+112,18,12,12);ctx.fillStyle='#39443f';ctx.fillText('100万以下',margin.left+130,24);
+}
+const baseRenderResults=renderResults;
+renderResults=function(){baseRenderResults();renderMaturityAnalysis()};
+const baseReadFile=readFile;
+readFile=async function(file){await baseReadFile(file);if(!rows.length)renderMaturityAnalysis()};
+let chartResizeTimer;
+window.addEventListener('resize',()=>{clearTimeout(chartResizeTimer);chartResizeTimer=setTimeout(()=>drawMaturityChart(lastMaturityData),120)});
+renderMaturityAnalysis();
