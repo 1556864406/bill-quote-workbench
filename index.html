@@ -24,7 +24,7 @@
 
   <section class="workspace rates-section">
     <div class="section-head"><div><span class="step">02</span><h2>利率维护</h2></div><button id="resetRates" class="text-button">恢复原始 Sheet1</button></div>
-    <p class="section-note">数值单位为百分比（例如 0.60 表示 0.60%）。修改会保存在当前浏览器；“其他类银票”是未命中关键词时的默认分类。</p>
+    <p class="section-note">数值单位为百分比（例如 0.60 表示 0.60%）。上传后会自动补充数据涉及但当前表中没有的到期月份，新月份利率可手动填写；原有月份利率保持不变。修改会保存在当前浏览器；“其他类银票”是未命中关键词时的默认分类。</p>
     <div class="rate-table-wrap"><table class="rate-table"><thead id="rateHead"></thead><tbody id="rateBody"></tbody></table></div>
   </section>
 
@@ -65,6 +65,6 @@
   <footer>计算数据仅在当前浏览器中处理 · 请在正式业务使用前复核利率与异常提示</footer>
 </main>
 <script src="exceljs.min.js"></script>
-<script src="app-v2.js"></script>
+<script src="app-v3.js"></script>
 </body>
 </html>
