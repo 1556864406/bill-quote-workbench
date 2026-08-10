@@ -24,7 +24,11 @@
 
   <section class="workspace rates-section">
     <div class="section-head"><div><span class="step">02</span><h2>利率维护</h2></div><button id="resetRates" class="text-button">恢复原始 Sheet1</button></div>
-    <p class="section-note">数值单位为百分比（例如 0.60 表示 0.60%）。上传后会自动补充数据涉及但当前表中没有的到期月份，新月份利率可手动填写；原有月份利率保持不变。修改会保存在当前浏览器；“其他类银票”是未命中关键词时的默认分类。</p>
+    <p class="section-note">数值单位为百分比（例如 0.60 表示 0.60%）。单张金额大于等于 100 万元时，按承兑行分类和到期月份取大票利率；小于 100 万元时，使用下方的小票利率。修改会保存在当前浏览器。</p>
+    <div class="small-rate-control">
+      <div><strong>单张票面100万以下</strong><span>原 Sheet1 的小票利率，适用于所有承兑行</span></div>
+      <label for="smallRate">小票利率（%）<input id="smallRate" type="number" step="0.01" min="0" /></label>
+    </div>
     <div class="rate-table-wrap"><table class="rate-table"><thead id="rateHead"></thead><tbody id="rateBody"></tbody></table></div>
   </section>
 
@@ -55,8 +59,8 @@
         <div class="panel-title"><strong>月度统计表</strong><span id="maturityTotal">共 0 张</span></div>
         <div class="maturity-table-wrap">
           <table class="maturity-table">
-            <thead><tr><th>到期月份</th><th>100万以上</th><th>100万以下</th><th>合计</th></tr></thead>
-            <tbody id="maturityBody"><tr><td colspan="4" class="empty">上传文件后自动生成月度统计</td></tr></tbody>
+            <thead><tr><th>到期月份</th><th>100万以上</th><th>100万以下</th><th>合计张数</th><th>到期金额总计（元）</th></tr></thead>
+            <tbody id="maturityBody"><tr><td colspan="5" class="empty">上传文件后自动生成月度统计</td></tr></tbody>
           </table>
         </div>
       </article>
@@ -65,6 +69,6 @@
   <footer>计算数据仅在当前浏览器中处理 · 请在正式业务使用前复核利率与异常提示</footer>
 </main>
 <script src="exceljs.min.js"></script>
-<script src="app-v3.js"></script>
+<script src="app-v4.js"></script>
 </body>
 </html>
