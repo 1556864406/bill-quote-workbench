@@ -14,7 +14,19 @@
     <div class="date-box"><label for="discountDate">贴现日</label><input id="discountDate" type="date" /></div>
   </header>
 
-  <section class="workspace">
+  <nav class="workspace-switcher" aria-label="工作区域选择">
+    <div class="switcher-copy"><span>当前功能</span><strong id="panelTitle">上传票据数据</strong><small id="panelHint">选择Excel文件开始测算</small></div>
+    <label for="workspaceSelect">切换功能
+      <select id="workspaceSelect">
+        <option value="upload">01　上传票据数据</option>
+        <option value="rates">02　利率维护</option>
+        <option value="results">03　测算结果</option>
+        <option value="maturity">04　月度到期统计</option>
+      </select>
+    </label>
+  </nav>
+
+  <section id="panel-upload" class="workspace tool-panel is-active" data-panel="upload">
     <div class="section-head"><div><span class="step">01</span><h2>上传票据数据</h2></div><span class="hint">支持 XLSX / XLS</span></div>
     <div id="dropzone" class="dropzone" role="button" tabindex="0">
       <input id="fileInput" hidden type="file" accept=".xlsx,.xls" />
@@ -22,7 +34,7 @@
     </div>
   </section>
 
-  <section class="workspace rates-section">
+  <section id="panel-rates" class="workspace rates-section tool-panel" data-panel="rates">
     <div class="section-head"><div><span class="step">02</span><h2>利率维护</h2></div><button id="resetRates" class="text-button">恢复原始 Sheet1</button></div>
     <p class="section-note">数值单位为百分比（例如 0.60 表示 0.60%）。单张金额大于等于 100 万元时，按承兑行分类和到期月份取大票利率；小于 100 万元时，使用下方的小票利率。修改会保存在当前浏览器。</p>
     <div class="small-rate-control">
@@ -32,7 +44,7 @@
     <div class="rate-table-wrap"><table class="rate-table"><thead id="rateHead"></thead><tbody id="rateBody"></tbody></table></div>
   </section>
 
-  <section class="workspace result-section">
+  <section id="panel-results" class="workspace result-section tool-panel" data-panel="results">
     <div class="section-head"><div><span class="step">03</span><h2>测算结果</h2></div><button id="exportBtn" class="primary" disabled>导出 Excel <span>↓</span></button></div>
     <div class="kpis">
       <article><span>加权平均天数</span><strong id="kpiDays">—</strong><em>天</em></article>
@@ -44,7 +56,7 @@
     <p id="tableNote" class="table-note"></p>
   </section>
 
-  <section class="workspace maturity-section">
+  <section id="panel-maturity" class="workspace maturity-section tool-panel" data-panel="maturity">
     <div class="section-head">
       <div><span class="step">04</span><h2>月度到期结构</h2></div>
       <span class="hint">按到期月份与票面金额统计</span>
@@ -69,6 +81,6 @@
   <footer>计算数据仅在当前浏览器中处理 · 请在正式业务使用前复核利率与异常提示</footer>
 </main>
 <script src="exceljs.min.js"></script>
-<script src="app-v4.js"></script>
+<script src="app-v5.js"></script>
 </body>
 </html>
