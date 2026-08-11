@@ -139,13 +139,26 @@ function drawMaturityChart(data){
  for(let i=0;i<=ticks;i++){const value=Math.round(axisMax*i/ticks),y=margin.top+chartH-chartH*i/ticks;ctx.beginPath();ctx.moveTo(margin.left,y);ctx.lineTo(width-margin.right,y);ctx.stroke();ctx.fillStyle='#746f64';ctx.fillText(String(value),margin.left-9,y)}
  const groupW=chartW/data.length,barW=Math.max(8,Math.min(30,(groupW-14)/2));
  data.forEach((item,index)=>{
-  const center=margin.left+groupW*(index+.5),bars=[{value:item.large,x:center-barW-2,color:'#8f1d2c'},{value:item.small,x:center+2,color:'#e15b64'}];
+  const center=margin.left+groupW*(index+.5),bars=[
+  {value:item.large,x:center-barW-2,color:'#173f35'},
+  {value:item.small,x:center+2,color:'#e5683a'}
+];
   bars.forEach(bar=>{const h=bar.value/axisMax*chartH,y=margin.top+chartH-h;ctx.fillStyle=bar.color;ctx.fillRect(bar.x,y,barW,h);if(bar.value){ctx.fillStyle='#39443f';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(String(bar.value),bar.x+barW/2,y-4)}});
   ctx.save();ctx.translate(center,margin.top+chartH+12);if(data.length>8)ctx.rotate(-Math.PI/4);ctx.fillStyle='#5f5a50';ctx.textAlign=data.length>8?'right':'center';ctx.textBaseline='top';ctx.fillText(item.label,0,0);ctx.restore();
  });
  ctx.textBaseline='middle';ctx.textAlign='left';ctx.fillStyle='#8f1d2c';ctx.fillRect(margin.left,18,12,12);ctx.fillStyle='#4c3b3e';ctx.fillText('100万以上',margin.left+18,24);ctx.fillStyle='#e15b64';ctx.fillRect(margin.left+112,18,12,12);ctx.fillStyle='#4c3b3e';ctx.fillText('100万以下',margin.left+130,24);
 }
-const AMOUNT_SHARE_COLORS=['#b5122b','#d52b3f','#e15b64','#ed8792','#8f1d2c','#c86f79','#d49b36','#8d776f','#6f5960','#f0a7af','#9f3748','#d8b36a'];
+const AMOUNT_SHARE_COLORS=[
+  '#173f35', // 深绿色
+  '#e5683a', // 橙色
+  '#e1b44b', // 金色
+  '#244f43', // 中绿色
+  '#305f50', // 浅绿色
+  '#d98a58', // 浅橙色
+  '#8fa99d', // 灰绿色
+  '#b78b32', // 深金色
+  '#746f64'  // 灰色
+];
 function drawAmountShareChart(data){
  const canvas=$('amountShareChart');
  if(!canvas)return;
