@@ -35,6 +35,50 @@ function isSummarySheetRow(row){
  row.eachCell({includeEmpty:false},cell=>{if(isSummaryLabel(cellText(cell)))found=true});
  return found;
 }
+function normalizedHeader(value){return String(value??'').replace(/[\s（）()【】\[\]：:]/g,'')}
+function headerColumnType(value){
+ const text=normalizedHeader(value);
+ if(/^(金额|票面金额|票据金额|出票金额|汇票金额|票据面额|票面余额)$/.test(text))return 'amount';
+ if(/到期日|到期日期|票据到期|汇票到期|到期时间/.test(text))return 'maturity';
+ if(/银行名称|承兑行|付款行|付款银行|承兑银行|出票行|承兑人|付款人|金融机构/.test(text))return 'bank';
+ return null;
+}
+function findHeaderColumns(ws){
+ for(let r=1;r<=Math.min(20,ws.rowCount);r++){
+  const cols={};
+  ws.getRow(r).eachCell((cell,c)=>{const type=headerColumnType(cellText(cell));if(type&&!cols[type])cols[type]=c});
+  if(cols.amount&&cols.maturity)return{header:r,cols};
+ }
+ return null;
+}
+function bankContentScore(value){
+ const text=String(value??'').replace(/\s/g,'');
+ if(!text)return 0;
+ if(/银行|农商行|信用社|农信|财务公司|村镇银行|金融服务中心|结算中心/.test(text))return 3;
+ if(/^(中信|招行|工行|建行|农行|中行|交行|邮储|浦发|光大|民生|兴业|华夏|广发|平安|浙商)/.test(text))return 2;
+ return 0;
+}
+function inferBankColumn(ws,header,excluded=[]){
+ const excludedSet=new Set(excluded.filter(Boolean)),end=Math.min(ws.rowCount,header+80),maxCol=Math.min(ws.columnCount||60,80);
+ let best=null;
+ for(let c=1;c<=maxCol;c++){
+  if(excludedSet.has(c))continue;
+  let nonBlank=0,hits=0,companyOnly=0;
+  for(let r=header+1;r<=end;r++){
+   const text=cellText(ws.getCell(r,c)).trim();
+   if(!text||isSummaryLabel(text))continue;
+   nonBlank++;
+   const contentScore=bankContentScore(text);
+   if(contentScore)hits+=contentScore;
+   else if(/有限公司|有限责任公司|公司$/.test(text))companyOnly++;
+  }
+  if(!nonBlank)continue;
+  const headerText=cellText(ws.getCell(header,c)),headerHint=/银行|承兑|付款|金融|机构/.test(headerText)?6:0;
+  const hitRows=Math.ceil(hits/3),ratio=hitRows/nonBlank,score=hits*8+ratio*20+headerHint-companyOnly*2;
+  if(hitRows>=Math.min(2,nonBlank)&&ratio>=.35&&(!best||score>best.score))best={column:c,score};
+ }
+ return best?.column||null;
+}
 function syncDetectedMonths(source){
  const ordered=[...source].filter(r=>r.maturity instanceof Date&&!isNaN(r.maturity)).sort((a,b)=>a.maturity-b.maturity).map(r=>r.maturity.getMonth()+1);
  const detected=[...new Set(ordered)],next=[...BASE_MONTHS];
@@ -66,17 +110,11 @@ async function readFile(file){
   await wb.xlsx.load(await file.arrayBuffer());
   const ws=wb.worksheets.find(s=>!/^sheet[12]$/i.test(s.name))||wb.worksheets[0];
   if(!ws)throw Error('工作簿中没有可读取的工作表');
-  let header=0,cols={};
-  for(let r=1;r<=Math.min(12,ws.rowCount);r++){
-   ws.getRow(r).eachCell((cell,c)=>{
-    const t=cellText(cell).replace(/\s/g,'');
-    if(/^(金额|票面金额|票据金额)$/.test(t))cols.amount=c;
-    if(/到期日|票据到期日/.test(t))cols.maturity=c;
-    if(/银行名称|承兑行/.test(t))cols.bank=c;
-   });
-   if(cols.amount&&cols.maturity&&cols.bank){header=r;break}
-  }
-  if(!header)throw Error('没有找到“金额、到期日、银行名称/承兑行”这三列');
+  const detected=findHeaderColumns(ws);
+  if(!detected)throw Error('没有自动识别出金额列或到期日列，请检查表头和数据格式');
+  const header=detected.header,cols=detected.cols;
+  if(!cols.bank)cols.bank=inferBankColumn(ws,header,[cols.amount,cols.maturity]);
+  if(!cols.bank)throw Error('没有自动识别出银行列，请确保该列下方填写了银行、农商行、信用社或财务公司名称');
   const parsed=[];
   for(let r=header+1;r<=ws.rowCount;r++){
    const sourceRow=ws.getRow(r);
@@ -90,7 +128,8 @@ async function readFile(file){
   rows=calculate(parsed);
   $('fileTitle').textContent=file.name;
   const issues=rows.filter(r=>r.status!=='ok').length;
-  setMessage(`已读取 ${rows.length} 条票据${issues?`，其中 ${issues} 条需要检查`:'，全部匹配成功'}`);
+  const bankHeader=cellText(ws.getCell(header,cols.bank)).trim()||'内容识别列';
+  setMessage(`已读取 ${rows.length} 条票据，银行列识别为“${bankHeader}”${issues?`；其中 ${issues} 条需要检查`:'；全部匹配成功'}`);
   renderResults();
  }catch(e){
   rows=[];
