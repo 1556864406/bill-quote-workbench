@@ -6,3 +6,32 @@
 
 .workspace-switcher{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:14px 22px;background:#efe9da;border:1px solid var(--line);border-top:0;box-shadow:0 8px 18px #173f3512}.switcher-copy{display:grid;grid-template-columns:auto 1fr;column-gap:12px;align-items:baseline}.switcher-copy>span{grid-row:1/3;color:var(--orange);font:700 11px Georgia;letter-spacing:.1em}.switcher-copy strong{color:var(--ink);font-family:Georgia,"Songti SC",serif;font-size:18px}.switcher-copy small{color:var(--muted);font-size:10px;margin-top:2px}.workspace-switcher label{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:11px;white-space:nowrap}.workspace-switcher select{min-width:240px;padding:10px 36px 10px 13px;border:1px solid #bdb49f;background:#fffdf8;color:var(--ink);font-weight:700;outline:none}.workspace-switcher select:focus{border-color:var(--orange);box-shadow:0 0 0 2px #e5683a22}.tool-panel{display:none}.tool-panel.is-active{display:block}.tool-panel .rate-table-wrap{max-height:calc(100vh - 390px)}.tool-panel .result-table-wrap{max-height:calc(100vh - 430px);min-height:260px}
 @media(max-width:800px){.workspace-switcher{align-items:stretch;flex-direction:column;gap:10px;padding:12px 18px}.switcher-copy{display:none}.workspace-switcher label{justify-content:space-between}.workspace-switcher select{min-width:0;width:72%}.tool-panel .rate-table-wrap{max-height:calc(100vh - 330px)}.tool-panel .result-table-wrap{max-height:calc(100vh - 390px);min-height:240px}}
+
+/* v7：中信红主题、宋体结果区、柱形图 + 金额占比饼图 + 下方月度表格 */
+:root{--ink:#c8102e;--paper:#f7f1f2;--card:#fffafa;--line:#e2d3d5;--muted:#76696b;--gold:#f3c6cd;--orange:#b5122b}
+html{background:var(--paper)}
+body{color:#2b2022;background:radial-gradient(circle at 80% 0,#f0dde0 0,transparent 34%),var(--paper)}
+.hero{background:linear-gradient(120deg,#a90f27 0,#c8102e 56%,#9f1024 100%)}
+.eyebrow,.hero p,.date-box label{color:#f6dfe3}
+.workspace-switcher{background:#f3e7e9;box-shadow:0 8px 18px #8f1d2c16}
+.rates-section,.maturity-section{background:#fbf5f6}
+.workspace-switcher select:focus{box-shadow:0 0 0 2px #c8102e22}
+.primary{background:#c8102e;box-shadow:3px 3px 0 #8f1d2c}
+.kpis article{background:#a90f27;border-left-color:#f3c6cd}
+.kpis article:nth-child(2){background:#c8102e}
+.kpis article:nth-child(3){background:#d52b3f}
+.kpis span,.kpis em{color:#f9e7ea}
+.result-meta .issue{color:#b5122b}
+.small-rate-control{border-color:#e0b8be;border-left-color:#c8102e;background:#fff3f5}
+.maturity-table .amount-count{color:#a90f27}
+.maturity-table .share-count{color:#c8102e;font-weight:700;white-space:nowrap}
+.result-section,.result-section button,.result-section table,.result-section .kpis strong{font-family:"SimSun","宋体",serif}
+.maturity-layout{grid-template-columns:minmax(0,1.65fr) minmax(330px,.85fr);align-items:start}
+.chart-panel,.pie-panel,.maturity-table-panel{background:var(--card);border:1px solid var(--line);min-width:0}
+.maturity-table-panel{grid-column:1/-1}
+.pie-wrap{width:100%;padding:8px 10px 0}
+.pie-wrap canvas{display:block;width:100%;height:360px}
+.maturity-table-wrap{max-height:420px}
+.maturity-table{min-width:760px}
+@media(max-width:1000px){.maturity-layout{grid-template-columns:1fr}.maturity-table-panel{grid-column:auto}.pie-wrap canvas{height:auto}}
+@media(max-width:800px){.pie-panel{border-left:0;border-right:0}.pie-wrap{padding-left:2px;padding-right:8px}}

@@ -19,6 +19,12 @@ function formatDate(d){return d&&!isNaN(d)?d.toLocaleDateString('zh-CN',{year:'n
 function excelDate(v){if(v instanceof Date)return new Date(v.getFullYear(),v.getMonth(),v.getDate());if(typeof v==='number'){const d=new Date(Math.round((v-25569)*86400000));return new Date(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate())}if(typeof v==='string'&&v.trim()){const d=new Date(v);if(!isNaN(d))return new Date(d.getFullYear(),d.getMonth(),d.getDate())}return null}
 function cellText(cell){const v=cell?.value;if(v==null)return '';try{return String(cell.text??'')}catch{if(typeof v==='object'&&v.result!=null)return String(v.result);if(typeof v==='object'&&Array.isArray(v.richText))return v.richText.map(x=>x.text||'').join('');return typeof v==='object'?'':String(v)}}
 function isBlankValue(v){return v==null||(typeof v==='string'&&v.trim()==='')||(typeof v==='object'&&v.result==null&&!Array.isArray(v.richText))}
+function numericCellValue(value){
+ const raw=typeof value==='object'&&value?.result!=null?value.result:value;
+ if(typeof raw==='number')return raw;
+ if(raw==null||String(raw).trim()==='')return NaN;
+ return Number(String(raw).replace(/[,，￥¥\s]/g,''));
+}
 function isSummaryLabel(value){
  const label=String(value??'').replace(/\s/g,'').replace(/[.．。、:：]/g,'');
  return /^(合计|总计|小计|汇总|总持有)/.test(label)||/^(持有银行承兑汇票合计)$/.test(label);
@@ -76,8 +82,9 @@ async function readFile(file){
    const sourceRow=ws.getRow(r);
    if(isSummarySheetRow(sourceRow))continue;
    const av=ws.getCell(r,cols.amount).value,mv=ws.getCell(r,cols.maturity).value,bank=cellText(ws.getCell(r,cols.bank)).trim();
-   if(isBlankValue(av)&&isBlankValue(mv)&&!bank)continue;
-   const amount=isBlankValue(av)?NaN:(typeof av==='number'?av:Number(String(av).replace(/[,，￥¥\s]/g,'')));
+   const requiredFieldCount=[!isBlankValue(av),!isBlankValue(mv),Boolean(bank)].filter(Boolean).length;
+   if(requiredFieldCount<=1)continue;
+   const amount=numericCellValue(av);
    parsed.push({index:parsed.length+1,maturity:excelDate(mv),bank,amount});
   }
   rows=calculate(parsed);
@@ -92,7 +99,7 @@ async function readFile(file){
  }finally{setBusy(false)}
 }
 function setMessage(t){$('message').textContent=t}function setBusy(b,t){$('dropzone').classList.toggle('busy',b);if(t)setMessage(t)}
-async function exportExcel(){if(!rows.length)return;const s=summary(),wb=new ExcelJS.Workbook();wb.creator='票据报价测算工具';const rs=wb.addWorksheet('利率维护');rs.addRow(['承兑行分类',...MONTHS.map(m=>m+'月'),'匹配关键词','100万以下参考下限']);rates.forEach(r=>rs.addRow([r.name,...MONTHS.map(m=>r.rates[m]??null),r.keywords,r.smallMin??null]));rs.getRow(1).font={bold:true,color:{argb:'FFFFFFFF'}};rs.getRow(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF173F35'}};rs.columns=[{width:25},...MONTHS.map(()=>({width:11})),{width:70},{width:20}];for(let c=2;c<=MONTHS.length+1;c++)rs.getColumn(c).numFmt='0.00';const ws=wb.addWorksheet('报价结果',{views:[{state:'frozen',ySplit:1}]});ws.addRow(['到期日','贴现日','计息天数','分行报价贴现利率','承兑行','金额','匹配分类','检查状态']);rows.forEach(r=>ws.addRow([r.maturity,r.discount,r.days,r.rate,r.bank,r.amount,r.category,r.status==='ok'?'正常':r.status==='warn'?'待确认':'异常']));ws.columns=[{width:14},{width:14},{width:12},{width:20},{width:48},{width:18},{width:24},{width:12}];ws.getRow(1).font={bold:true,color:{argb:'FFFFFFFF'}};ws.getRow(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF173F35'}};ws.getColumn(1).numFmt='yyyy/m/d';ws.getColumn(2).numFmt='yyyy/m/d';ws.getColumn(4).numFmt='0.00';ws.getColumn(6).numFmt='#,##0.00';ws.autoFilter={from:'A1',to:'H1'};ws.addRow([]);const start=ws.rowCount+1;[['加权平均天数',s.days],['合计金额',s.amount],['加权利率',s.rate]].forEach(x=>ws.addRow([null,null,null,null,null,x[0],x[1]]));for(let r=start;r<start+3;r++)for(let c=6;c<=7;c++){ws.getCell(r,c).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE36E'}};ws.getCell(r,c).font={bold:true}}ws.getCell(start,7).numFmt='0';ws.getCell(start+1,7).numFmt='#,##0.00';ws.getCell(start+2,7).numFmt='0.00';const blob=new Blob([await wb.xlsx.writeBuffer()],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`报价测算结果_${$('discountDate').value}.xlsx`;a.click();URL.revokeObjectURL(url)}
+async function exportExcel(){if(!rows.length)return;const s=summary(),wb=new ExcelJS.Workbook();wb.creator='票据报价测算工具';const rs=wb.addWorksheet('利率维护');rs.addRow(['承兑行分类',...MONTHS.map(m=>m+'月'),'匹配关键词','100万以下参考下限']);rates.forEach(r=>rs.addRow([r.name,...MONTHS.map(m=>r.rates[m]??null),r.keywords,r.smallMin??null]));rs.getRow(1).font={bold:true,color:{argb:'FFFFFFFF'}};rs.getRow(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFC8102E'}};rs.columns=[{width:25},...MONTHS.map(()=>({width:11})),{width:70},{width:20}];for(let c=2;c<=MONTHS.length+1;c++)rs.getColumn(c).numFmt='0.00';const ws=wb.addWorksheet('报价结果',{views:[{state:'frozen',ySplit:1}]});ws.addRow(['到期日','贴现日','计息天数','分行报价贴现利率','承兑行','金额','匹配分类','检查状态']);rows.forEach(r=>ws.addRow([r.maturity,r.discount,r.days,r.rate,r.bank,r.amount,r.category,r.status==='ok'?'正常':r.status==='warn'?'待确认':'异常']));ws.columns=[{width:14},{width:14},{width:12},{width:20},{width:48},{width:18},{width:24},{width:12}];ws.getRow(1).font={bold:true,color:{argb:'FFFFFFFF'}};ws.getRow(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFC8102E'}};ws.getColumn(1).numFmt='yyyy/m/d';ws.getColumn(2).numFmt='yyyy/m/d';ws.getColumn(4).numFmt='0.00';ws.getColumn(6).numFmt='#,##0.00';ws.autoFilter={from:'A1',to:'H1'};ws.addRow([]);const start=ws.rowCount+1;[['加权平均天数',s.days],['合计金额',s.amount],['加权利率',s.rate]].forEach(x=>ws.addRow([null,null,null,null,null,x[0],x[1]]));for(let r=start;r<start+3;r++)for(let c=6;c<=7;c++){ws.getCell(r,c).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE36E'}};ws.getCell(r,c).font={bold:true}}ws.getCell(start,7).numFmt='0';ws.getCell(start+1,7).numFmt='#,##0.00';ws.getCell(start+2,7).numFmt='0.00';const blob=new Blob([await wb.xlsx.writeBuffer()],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`报价测算结果_${$('discountDate').value}.xlsx`;a.click();URL.revokeObjectURL(url)}
 $('discountDate').value=today();renderRates();$('discountDate').addEventListener('change',recalc);$('resetRates').addEventListener('click',()=>{rates=structuredClone(DEFAULTS);saveRates();renderRates();recalc()});$('exportBtn').addEventListener('click',exportExcel);const dz=$('dropzone'),fi=$('fileInput');dz.addEventListener('click',()=>fi.click());dz.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')fi.click()});dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragging')});dz.addEventListener('dragleave',()=>dz.classList.remove('dragging'));dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragging');if(e.dataTransfer.files[0])readFile(e.dataTransfer.files[0])});fi.addEventListener('change',()=>{if(fi.files[0])readFile(fi.files[0]);fi.value=''})
 
 let lastMaturityData=[];
@@ -114,8 +121,9 @@ function renderMaturityAnalysis(){
  lastMaturityData=getMonthlyMaturityData();
  const total=lastMaturityData.reduce((sum,item)=>sum+item.total,0),totalAmount=lastMaturityData.reduce((sum,item)=>sum+item.amount,0);
  $('maturityTotal').textContent=`共 ${total} 张 · ${money.format(totalAmount)} 元`;
- $('maturityBody').innerHTML=lastMaturityData.length?lastMaturityData.map(item=>`<tr><td>${item.label}</td><td class="large-count">${item.large}</td><td class="small-count">${item.small}</td><td><strong>${item.total}</strong></td><td class="amount-count">${money.format(item.amount)}</td></tr>`).join(''):'<tr><td colspan="5" class="empty">上传文件后自动生成月度统计</td></tr>';
+ $('maturityBody').innerHTML=lastMaturityData.length?lastMaturityData.map(item=>{const share=totalAmount?item.amount/totalAmount:0;return `<tr><td>${item.label}</td><td class="large-count">${item.large}</td><td class="small-count">${item.small}</td><td><strong>${item.total}</strong></td><td class="amount-count">${money.format(item.amount)}</td><td class="share-count">${(share*100).toFixed(2)}%</td></tr>`}).join(''):'<tr><td colspan="6" class="empty">上传文件后自动生成月度统计</td></tr>';
  drawMaturityChart(lastMaturityData);
+ drawAmountShareChart(lastMaturityData);
 }
 function drawMaturityChart(data){
  const canvas=$('maturityChart');
@@ -131,11 +139,34 @@ function drawMaturityChart(data){
  for(let i=0;i<=ticks;i++){const value=Math.round(axisMax*i/ticks),y=margin.top+chartH-chartH*i/ticks;ctx.beginPath();ctx.moveTo(margin.left,y);ctx.lineTo(width-margin.right,y);ctx.stroke();ctx.fillStyle='#746f64';ctx.fillText(String(value),margin.left-9,y)}
  const groupW=chartW/data.length,barW=Math.max(8,Math.min(30,(groupW-14)/2));
  data.forEach((item,index)=>{
-  const center=margin.left+groupW*(index+.5),bars=[{value:item.large,x:center-barW-2,color:'#173f35'},{value:item.small,x:center+2,color:'#e5683a'}];
+  const center=margin.left+groupW*(index+.5),bars=[{value:item.large,x:center-barW-2,color:'#8f1d2c'},{value:item.small,x:center+2,color:'#e15b64'}];
   bars.forEach(bar=>{const h=bar.value/axisMax*chartH,y=margin.top+chartH-h;ctx.fillStyle=bar.color;ctx.fillRect(bar.x,y,barW,h);if(bar.value){ctx.fillStyle='#39443f';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(String(bar.value),bar.x+barW/2,y-4)}});
   ctx.save();ctx.translate(center,margin.top+chartH+12);if(data.length>8)ctx.rotate(-Math.PI/4);ctx.fillStyle='#5f5a50';ctx.textAlign=data.length>8?'right':'center';ctx.textBaseline='top';ctx.fillText(item.label,0,0);ctx.restore();
  });
- ctx.textBaseline='middle';ctx.textAlign='left';ctx.fillStyle='#173f35';ctx.fillRect(margin.left,18,12,12);ctx.fillStyle='#39443f';ctx.fillText('100万以上',margin.left+18,24);ctx.fillStyle='#e5683a';ctx.fillRect(margin.left+112,18,12,12);ctx.fillStyle='#39443f';ctx.fillText('100万以下',margin.left+130,24);
+ ctx.textBaseline='middle';ctx.textAlign='left';ctx.fillStyle='#8f1d2c';ctx.fillRect(margin.left,18,12,12);ctx.fillStyle='#4c3b3e';ctx.fillText('100万以上',margin.left+18,24);ctx.fillStyle='#e15b64';ctx.fillRect(margin.left+112,18,12,12);ctx.fillStyle='#4c3b3e';ctx.fillText('100万以下',margin.left+130,24);
+}
+const AMOUNT_SHARE_COLORS=['#b5122b','#d52b3f','#e15b64','#ed8792','#8f1d2c','#c86f79','#d49b36','#8d776f','#6f5960','#f0a7af','#9f3748','#d8b36a'];
+function drawAmountShareChart(data){
+ const canvas=$('amountShareChart');
+ if(!canvas)return;
+ const width=Math.max(280,canvas.parentElement.clientWidth),columns=width<360?1:2,height=Math.max(360,280+Math.ceil(data.length/columns)*23),dpr=Math.max(1,window.devicePixelRatio||1);
+ canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);canvas.style.height=height+'px';
+ const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,width,height);ctx.font='11px "Microsoft YaHei",sans-serif';
+ const totalAmount=data.reduce((sum,item)=>sum+item.amount,0);
+ if(!data.length||!totalAmount){ctx.fillStyle='#7b6f70';ctx.textAlign='center';ctx.fillText('上传文件后自动生成金额占比饼图',width/2,height/2);return}
+ const radius=Math.min(108,width*.3),cx=width/2,cy=132;
+ let angle=-Math.PI/2;
+ data.forEach((item,index)=>{
+  const share=item.amount/totalAmount,next=angle+share*Math.PI*2,color=AMOUNT_SHARE_COLORS[index%AMOUNT_SHARE_COLORS.length];
+  ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,radius,angle,next);ctx.closePath();ctx.fillStyle=color;ctx.fill();ctx.strokeStyle='#fffaf8';ctx.lineWidth=2;ctx.stroke();
+  if(share>=.075){const mid=(angle+next)/2;ctx.fillStyle='#fff';ctx.font='700 11px "Microsoft YaHei",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(`${(share*100).toFixed(1)}%`,cx+Math.cos(mid)*radius*.62,cy+Math.sin(mid)*radius*.62)}
+  angle=next;
+ });
+ const columnWidth=width/columns,legendTop=cy+radius+24;
+ data.forEach((item,index)=>{
+  const column=index%columns,row=Math.floor(index/columns),x=column*columnWidth+18,y=legendTop+row*23,share=item.amount/totalAmount;
+  ctx.fillStyle=AMOUNT_SHARE_COLORS[index%AMOUNT_SHARE_COLORS.length];ctx.fillRect(x,y-6,10,10);ctx.fillStyle='#4c3b3e';ctx.font='11px "Microsoft YaHei",sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText(`${item.label}  ${(share*100).toFixed(2)}%`,x+16,y-1);
+ });
 }
 const baseRenderResults=renderResults;
 renderResults=function(){baseRenderResults();renderMaturityAnalysis()};
@@ -149,7 +180,7 @@ readFile=async function(file){
  else showPanel('results');
 };
 let chartResizeTimer;
-window.addEventListener('resize',()=>{clearTimeout(chartResizeTimer);chartResizeTimer=setTimeout(()=>drawMaturityChart(lastMaturityData),120)});
+window.addEventListener('resize',()=>{clearTimeout(chartResizeTimer);chartResizeTimer=setTimeout(()=>{drawMaturityChart(lastMaturityData);drawAmountShareChart(lastMaturityData)},120)});
 renderMaturityAnalysis();
 
 async function exportExcelV4(){
@@ -164,7 +195,7 @@ async function exportExcelV4(){
  rates.forEach(r=>rs.addRow([r.name,...MONTHS.map(m=>r.rates[m]??null),r.keywords]));
  rs.columns=[{width:30},...MONTHS.map(()=>({width:11})),{width:70}];
  rs.getRow(3).font={bold:true,color:{argb:'FFFFFFFF'}};
- rs.getRow(3).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF173F35'}};
+ rs.getRow(3).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFC8102E'}};
  rs.getCell(1,1).font={bold:true};rs.getCell(1,1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE36E'}};
  rs.getCell(1,2).font={bold:true};rs.getCell(1,2).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE36E'}};
  for(let c=2;c<=MONTHS.length+1;c++)rs.getColumn(c).numFmt='0.00';
@@ -173,7 +204,7 @@ async function exportExcelV4(){
  ws.addRow(['到期日','贴现日','计息天数','分行报价贴现利率','承兑行','金额','金额档位','匹配分类','检查状态']);
  rows.forEach(r=>ws.addRow([r.maturity,r.discount,r.days,r.rate,r.bank,r.amount,r.sizeTier,r.category,r.status==='ok'?'正常':r.status==='warn'?'待确认':'异常']));
  ws.columns=[{width:14},{width:14},{width:12},{width:20},{width:48},{width:18},{width:14},{width:24},{width:12}];
- ws.getRow(1).font={bold:true,color:{argb:'FFFFFFFF'}};ws.getRow(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF173F35'}};
+ ws.getRow(1).font={bold:true,color:{argb:'FFFFFFFF'}};ws.getRow(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFC8102E'}};
  ws.getColumn(1).numFmt='yyyy/m/d';ws.getColumn(2).numFmt='yyyy/m/d';ws.getColumn(4).numFmt='0.00';ws.getColumn(6).numFmt='#,##0.00';ws.autoFilter={from:'A1',to:'I1'};
  ws.addRow([]);
  const start=ws.rowCount+1;
@@ -182,13 +213,14 @@ async function exportExcelV4(){
  ws.getCell(start,7).numFmt='0';ws.getCell(start+1,7).numFmt='#,##0.00';ws.getCell(start+2,7).numFmt='0.00';
 
  const ms=wb.addWorksheet('月度到期统计',{views:[{state:'frozen',ySplit:1}]});
- ms.addRow(['到期月份','100万以上张数','100万以下张数','合计张数','到期金额总计']);
- monthly.forEach(item=>ms.addRow([item.label,item.large,item.small,item.total,item.amount]));
- const totalRow=ms.addRow(['合计',monthly.reduce((n,x)=>n+x.large,0),monthly.reduce((n,x)=>n+x.small,0),monthly.reduce((n,x)=>n+x.total,0),monthly.reduce((n,x)=>n+x.amount,0)]);
- ms.columns=[{width:18},{width:18},{width:18},{width:14},{width:22}];
- ms.getRow(1).font={bold:true,color:{argb:'FFFFFFFF'}};ms.getRow(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF173F35'}};
+ const monthlyAmountTotal=monthly.reduce((n,x)=>n+x.amount,0);
+ ms.addRow(['到期月份','100万以上张数','100万以下张数','合计张数','到期金额总计','各月合计金额占比']);
+ monthly.forEach(item=>ms.addRow([item.label,item.large,item.small,item.total,item.amount,monthlyAmountTotal?item.amount/monthlyAmountTotal:0]));
+ const totalRow=ms.addRow(['合计',monthly.reduce((n,x)=>n+x.large,0),monthly.reduce((n,x)=>n+x.small,0),monthly.reduce((n,x)=>n+x.total,0),monthlyAmountTotal,monthlyAmountTotal?1:0]);
+ ms.columns=[{width:18},{width:18},{width:18},{width:14},{width:22},{width:22}];
+ ms.getRow(1).font={bold:true,color:{argb:'FFFFFFFF'}};ms.getRow(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFC8102E'}};
  totalRow.font={bold:true};totalRow.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE36E'}};
- ms.getColumn(5).numFmt='#,##0.00';ms.autoFilter={from:'A1',to:'E1'};
+ ms.getColumn(5).numFmt='#,##0.00';ms.getColumn(6).numFmt='0.00%';ms.autoFilter={from:'A1',to:'F1'};
 
  const blob=new Blob([await wb.xlsx.writeBuffer()],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),url=URL.createObjectURL(blob),a=document.createElement('a');
  a.href=url;a.download=`报价测算结果_${$('discountDate').value}.xlsx`;a.click();URL.revokeObjectURL(url);
@@ -205,13 +237,13 @@ const PANEL_INFO={
  upload:{title:'上传票据数据',hint:'选择Excel文件开始测算'},
  rates:{title:'利率维护',hint:'维护大票月度利率和100万以下小票利率'},
  results:{title:'测算结果',hint:'查看加权指标、报价明细并导出Excel'},
- maturity:{title:'月度到期统计',hint:'查看各月到期张数和金额总计'}
+ maturity:{title:'月度到期统计',hint:'查看各月到期张数、金额总计与占比'}
 };
 function showPanel(name,shouldScroll=true){
  const target=PANEL_INFO[name]?name:'upload';
  document.querySelectorAll('.tool-panel').forEach(panel=>{const active=panel.dataset.panel===target;panel.classList.toggle('is-active',active);panel.hidden=!active});
  $('workspaceSelect').value=target;$('panelTitle').textContent=PANEL_INFO[target].title;$('panelHint').textContent=PANEL_INFO[target].hint;
- if(target==='maturity')requestAnimationFrame(()=>drawMaturityChart(lastMaturityData));
+ if(target==='maturity')requestAnimationFrame(()=>{drawMaturityChart(lastMaturityData);drawAmountShareChart(lastMaturityData)});
  if(shouldScroll)document.querySelector('.workspace-switcher').scrollIntoView({block:'start'});
 }
 $('workspaceSelect').addEventListener('change',e=>showPanel(e.target.value));

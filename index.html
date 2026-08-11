@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="description" content="上传票据清单、维护承兑行利率并生成加权报价 Excel" />
   <title>票据报价测算台</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=7" />
 </head>
 <body>
 <main>
@@ -67,12 +67,16 @@
         <div class="panel-title"><strong>每月到期汇票张数</strong><span>单位：张</span></div>
         <div class="chart-wrap"><canvas id="maturityChart" role="img" aria-label="每月到期汇票100万以上与100万以下张数柱形图"></canvas></div>
       </article>
+      <article class="pie-panel">
+        <div class="panel-title"><strong>各月到期金额占比</strong><span>单位：%</span></div>
+        <div class="pie-wrap"><canvas id="amountShareChart" role="img" aria-label="各月到期金额占比饼图"></canvas></div>
+      </article>
       <article class="maturity-table-panel">
         <div class="panel-title"><strong>月度统计表</strong><span id="maturityTotal">共 0 张</span></div>
         <div class="maturity-table-wrap">
           <table class="maturity-table">
-            <thead><tr><th>到期月份</th><th>100万以上</th><th>100万以下</th><th>合计张数</th><th>到期金额总计（元）</th></tr></thead>
-            <tbody id="maturityBody"><tr><td colspan="5" class="empty">上传文件后自动生成月度统计</td></tr></tbody>
+            <thead><tr><th>到期月份</th><th>100万以上</th><th>100万以下</th><th>合计张数</th><th>到期金额总计（元）</th><th>各月合计金额占比</th></tr></thead>
+            <tbody id="maturityBody"><tr><td colspan="6" class="empty">上传文件后自动生成月度统计</td></tr></tbody>
           </table>
         </div>
       </article>
@@ -81,6 +85,6 @@
   <footer>计算数据仅在当前浏览器中处理 · 请在正式业务使用前复核利率与异常提示</footer>
 </main>
 <script src="exceljs.min.js"></script>
-<script src="app-v6.js"></script>
+<script src="app-v6.js?v=7"></script>
 </body>
 </html>
