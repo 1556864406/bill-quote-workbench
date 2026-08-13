@@ -26,7 +26,7 @@ function numericCellValue(value){
  return Number(String(raw).replace(/[,，￥¥\s]/g,''));
 }
 function isSummaryLabel(value){
- const label=String(value??'').replace(/\s/g,'').replace(/[.．。、:：]/g,'');
+ const label=normalizeChinese(value).replace(/\s/g,'').replace(/[.．。、:：]/g,'');
  return /^(合计|总计|小计|汇总|总持有)/.test(label)||/^(持有银行承兑汇票合计)$/.test(label);
 }
 function isInputSummary(row){return isSummaryLabel(row?.bank)}
@@ -35,16 +35,33 @@ function isSummarySheetRow(row){
  row.eachCell({includeEmpty:false},cell=>{if(isSummaryLabel(cellText(cell)))found=true});
  return found;
 }
-function normalizedHeader(value){return String(value??'').replace(/[\s（）()【】\[\]：:]/g,'')}
+function normalizeChinese(value){
+ const map={'銀':'银','額':'额','稱':'称','據':'据','號':'号','碼':'码','項':'项','總':'总','計':'计','匯':'汇','國':'国','農':'农','業':'业','儲':'储','發':'发','設':'设','郵':'邮','東':'东','廣':'广','華':'华','興':'兴','寧':'宁','蘇':'苏','門':'门','處':'处','務':'务','責':'责','結':'结','構':'构'};
+ return String(value??'').replace(/[銀額稱據號碼項總計匯國農業儲發設郵東廣華興寧蘇門處務責結構]/g,char=>map[char]||char);
+}
+function normalizedHeader(value){return normalizeChinese(value).replace(/[\s（）()【】\[\]：:]/g,'')}
 function headerColumnType(value){
  const text=normalizedHeader(value);
- if(/^(金额|票面金额|票据金额|出票金额|汇票金额|票据面额|票面余额)$/.test(text))return 'amount';
+ if(/^(金额|票面金额|票据金额|出票金额|汇票金额|票据面额|票面余额|应收金额)$/.test(text))return 'amount';
  if(/到期日|到期日期|票据到期|汇票到期|到期时间/.test(text))return 'maturity';
- if(/银行名称|承兑行|付款行|付款银行|承兑银行|出票行|承兑人|付款人|金融机构/.test(text))return 'bank';
+ if(/银行.*名称|银行中文名称|承兑行|付款行|付款银行|承兑银行|出票行|承兑人|付款人|金融机构/.test(text))return 'bank';
  return null;
 }
+function columnsFromHeaderRow(ws,rowNumber){
+ const cols={};
+ ws.getRow(rowNumber).eachCell((cell,c)=>{const type=headerColumnType(cellText(cell));if(type&&!cols[type])cols[type]=c});
+ return cols;
+}
+function findTableSections(ws){
+ const headers=[];
+ for(let r=1;r<=ws.rowCount;r++){
+  const cols=columnsFromHeaderRow(ws,r);
+  if(cols.amount&&cols.maturity)headers.push({header:r,cols});
+ }
+ return headers.map((section,index)=>({...section,end:(headers[index+1]?.header||ws.rowCount+1)-1}));
+}
 function findHeaderColumns(ws){
- for(let r=1;r<=Math.min(20,ws.rowCount);r++){
+ for(let r=1;r<=Math.min(30,ws.rowCount);r++){
   const cols={};
   ws.getRow(r).eachCell((cell,c)=>{const type=headerColumnType(cellText(cell));if(type&&!cols[type])cols[type]=c});
   if(cols.amount&&cols.maturity)return{header:r,cols};
@@ -52,14 +69,14 @@ function findHeaderColumns(ws){
  return null;
 }
 function bankContentScore(value){
- const text=String(value??'').replace(/\s/g,'');
+ const text=normalizeChinese(value).replace(/\s/g,'');
  if(!text)return 0;
  if(/银行|农商行|信用社|农信|财务公司|村镇银行|金融服务中心|结算中心/.test(text))return 3;
  if(/^(中信|招行|工行|建行|农行|中行|交行|邮储|浦发|光大|民生|兴业|华夏|广发|平安|浙商)/.test(text))return 2;
  return 0;
 }
-function inferBankColumn(ws,header,excluded=[]){
- const excludedSet=new Set(excluded.filter(Boolean)),end=Math.min(ws.rowCount,header+80),maxCol=Math.min(ws.columnCount||60,80);
+function inferBankColumn(ws,header,excluded=[],sectionEnd=ws.rowCount){
+ const excludedSet=new Set(excluded.filter(Boolean)),end=Math.min(sectionEnd,header+80),maxCol=Math.min(ws.columnCount||60,80);
  let best=null;
  for(let c=1;c<=maxCol;c++){
   if(excludedSet.has(c))continue;
@@ -73,7 +90,7 @@ function inferBankColumn(ws,header,excluded=[]){
    else if(/有限公司|有限责任公司|公司$/.test(text))companyOnly++;
   }
   if(!nonBlank)continue;
-  const headerText=cellText(ws.getCell(header,c)),headerHint=/银行|承兑|付款|金融|机构/.test(headerText)?6:0;
+  const headerText=normalizeChinese(cellText(ws.getCell(header,c))),headerHint=/银行|承兑|付款|金融|机构/.test(headerText)?6:0;
   const hitRows=Math.ceil(hits/3),ratio=hitRows/nonBlank,score=hits*8+ratio*20+headerHint-companyOnly*2;
   if(hitRows>=Math.min(2,nonBlank)&&ratio>=.35&&(!best||score>best.score))best={column:c,score};
  }
@@ -87,7 +104,7 @@ function syncDetectedMonths(source){
  MONTHS.splice(0,MONTHS.length,...next);
  return{changed:before!==MONTHS.join(','),added};
 }
-function classify(bank){for(const r of rates.filter(x=>x.id!=='other')){if(r.keywords.split(/[,，、\n]/).map(x=>x.trim()).filter(Boolean).some(k=>bank.includes(k)))return r}return rates.find(x=>x.id==='other')||rates[rates.length-1]}
+function classify(bank){const normalizedBank=normalizeChinese(bank);for(const r of rates.filter(x=>x.id!=='other')){if(r.keywords.split(/[,，、\n]/).map(x=>normalizeChinese(x).trim()).filter(Boolean).some(k=>normalizedBank.includes(k)))return r}return rates.find(x=>x.id==='other')||rates[rates.length-1]}
 function renderRates(){
  $('rateHead').innerHTML=`<tr><th>承兑行分类</th>${MONTHS.map(m=>`<th>${m}月</th>`).join('')}<th>银行匹配关键词</th></tr>`;
  $('rateBody').innerHTML=rates.map(r=>`<tr data-id="${r.id}"><td><strong>${esc(r.name)}</strong></td>${MONTHS.map(m=>`<td><input data-month="${m}" type="number" step="0.01" value="${r.rates[m]??''}" aria-label="${esc(r.name)}${m}月大票利率"></td>`).join('')}<td><textarea data-keywords aria-label="${esc(r.name)}匹配关键词" placeholder="${r.id==='other'?'默认分类，无需关键词':'用逗号分隔'}">${esc(r.keywords)}</textarea></td></tr>`).join('');
@@ -110,26 +127,35 @@ async function readFile(file){
   await wb.xlsx.load(await file.arrayBuffer());
   const ws=wb.worksheets.find(s=>!/^sheet[12]$/i.test(s.name))||wb.worksheets[0];
   if(!ws)throw Error('工作簿中没有可读取的工作表');
-  const detected=findHeaderColumns(ws);
-  if(!detected)throw Error('没有自动识别出金额列或到期日列，请检查表头和数据格式');
-  const header=detected.header,cols=detected.cols;
-  if(!cols.bank)cols.bank=inferBankColumn(ws,header,[cols.amount,cols.maturity]);
-  if(!cols.bank)throw Error('没有自动识别出银行列，请确保该列下方填写了银行、农商行、信用社或财务公司名称');
+  const sections=findTableSections(ws);
+  if(!sections.length)throw Error('没有自动识别出金额列或到期日列，请检查表头和数据格式');
   const parsed=[];
-  for(let r=header+1;r<=ws.rowCount;r++){
-   const sourceRow=ws.getRow(r);
-   if(isSummarySheetRow(sourceRow))continue;
-   const av=ws.getCell(r,cols.amount).value,mv=ws.getCell(r,cols.maturity).value,bank=cellText(ws.getCell(r,cols.bank)).trim();
-   const requiredFieldCount=[!isBlankValue(av),!isBlankValue(mv),Boolean(bank)].filter(Boolean).length;
-   if(requiredFieldCount<=1)continue;
-   const amount=numericCellValue(av);
-   parsed.push({index:parsed.length+1,maturity:excelDate(mv),bank,amount});
+  const bankHeaders=[];
+  let processedSections=0;
+  for(const section of sections){
+   const {header,end,cols}=section;
+   if(!cols.bank)cols.bank=inferBankColumn(ws,header,[cols.amount,cols.maturity],end);
+   if(!cols.bank)continue;
+   processedSections++;
+   bankHeaders.push(cellText(ws.getCell(header,cols.bank)).trim()||`第${header}行内容识别列`);
+   for(let r=header+1;r<=end;r++){
+    const sourceRow=ws.getRow(r);
+    if(isSummarySheetRow(sourceRow))continue;
+    const av=ws.getCell(r,cols.amount).value,mv=ws.getCell(r,cols.maturity).value,bank=cellText(ws.getCell(r,cols.bank)).trim();
+    const requiredFieldCount=[!isBlankValue(av),!isBlankValue(mv),Boolean(bank)].filter(Boolean).length;
+    if(requiredFieldCount<=1)continue;
+    const amount=numericCellValue(av),maturity=excelDate(mv);
+    if(!Number.isFinite(amount)&&!maturity&&!bank)continue;
+    parsed.push({index:parsed.length+1,maturity,bank,amount});
+   }
   }
+  if(!bankHeaders.length)throw Error('没有自动识别出银行列，请确保明细中填写了银行、农商行、信用社或财务公司名称');
+  if(!parsed.length)throw Error('已识别表头，但没有找到有效票据明细，请检查金额、到期日和银行名称');
   rows=calculate(parsed);
   $('fileTitle').textContent=file.name;
   const issues=rows.filter(r=>r.status!=='ok').length;
-  const bankHeader=cellText(ws.getCell(header,cols.bank)).trim()||'内容识别列';
-  setMessage(`已读取 ${rows.length} 条票据，银行列识别为“${bankHeader}”${issues?`；其中 ${issues} 条需要检查`:'；全部匹配成功'}`);
+  const uniqueBankHeaders=[...new Set(bankHeaders)];
+  setMessage(`已合并读取 ${processedSections} 段、${rows.length} 条票据，银行列识别为“${uniqueBankHeaders.join('、')}”${issues?`；其中 ${issues} 条需要检查`:'；全部匹配成功'}`);
   renderResults();
  }catch(e){
   rows=[];
